@@ -1,0 +1,114 @@
+Quero criar uma nova skill chamada `glue-etl-job`. O objetivo é que, no futuro,
+um assistente de IA com essa skill carregada possa receber "crie um Glue Job que
+faz X" e gerar código seguindo exatamente os padrões que vou te mostrar agora.
+
+## O que é uma "skill" (contexto, caso você não conheça)
+
+Uma skill é um diretório com instruções e recursos que um agente carrega quando
+detecta que vai precisar dela. A estrutura canônica é:
+
+```
+glue-etl-job/
+├── SKILL.md           # arquivo principal — instruções e workflow
+├── references/        # docs detalhados, carregados só quando necessário
+├── scripts/           # helpers executáveis (linters, validadores)
+└── assets/            # templates de código, fixtures, exemplos
+```
+
+O `SKILL.md` precisa começar com frontmatter YAML:
+
+```yaml
+---
+name: glue-etl-job
+description: <quando usar + o que faz, em 3ª pessoa, com gatilhos específicos>
+---
+```
+
+Regras importantes:
+
+- A `description` é o que faz a skill ser ativada. Escreva pensando "que palavras
+  o usuário provavelmente vai usar quando precisar disso?". Inclua gatilhos
+  explícitos: "criar glue job", "etl aws", "pyspark", nome do projeto, etc.
+  Use 3ª pessoa: "Cria Glue Jobs ETL seguindo o padrão do time X. Use quando o
+  usuário pedir..."
+- **Progressive disclosure**: o SKILL.md deve ser enxuto (idealmente < 500 linhas).
+  Conteúdo verboso (regras de naming detalhadas, tabelas de referência, exemplos
+  longos) vai pra `references/` e o SKILL.md só *aponta* "leia
+  `references/naming.md` quando o usuário não fornecer um nome de job".
+- Templates em `assets/` usam placeholders (`{{JOB_NAME}}`, `{{SOURCE_PATH}}`).
+- Nada de duplicar informação entre arquivos.
+
+## Fase 1 — Descoberta (não escreva a skill ainda)
+
+O diretório atual contém vários Glue Jobs de produção que representam o padrão
+a replicar. Trate este repositório como única fonte de verdade — ignore
+convenções genéricas de Glue/PySpark da internet quando conflitarem com o que
+está aqui.
+
+Faça uma varredura e me devolva um relatório com:
+
+1. **Inventário**: cada job encontrado, com 1 linha de resumo (origem →
+   transformação → destino).
+2. **Estrutura de projeto**: organização de pastas, separação entre código do
+   job, utilitários compartilhados, configs, testes, IaC.
+3. **Anatomia de um job típico**: ordem das seções (imports, parsing de args,
+   init do GlueContext/SparkSession, leitura, transformações, escrita, commit).
+   Aponte se há um esqueleto recorrente.
+4. **Convenções de código**:
+   - Nomenclatura (arquivos, funções, variáveis, nome do job no Glue)
+   - DynamicFrame vs DataFrame — quando cada um?
+   - Como args são lidos/validados (`getResolvedOptions`, defaults, tipagem)
+   - Logging (logger nativo, `logging` Python, formato)
+   - Tratamento de erro, retries, idempotência
+   - Job Bookmarks — usados ou não?
+   - Particionamento, formatos (Parquet/Delta/Iceberg), modos de escrita
+   - Glue Catalog: `enableUpdateCatalog`, criação de tabelas, crawlers
+5. **Pontos de variação**: o que muda entre jobs (source/target, schema, regras
+   de transformação) — vira input da skill.
+6. **Pontos invariantes**: o que se repete em 100% dos jobs — vira boilerplate
+   ou helper.
+7. **Testes**: padrão de teste? unit (mock do GlueContext)? integração? fixtures?
+8. **Deploy / IaC**: Terraform, CDK, CloudFormation? Que parâmetros ficam no
+   IaC vs no código?
+9. **Anti-padrões**: coisas que apareceram em 1–2 jobs e parecem inconsistência
+   (não padrão). Me pergunte caso a caso antes de decidir.
+
+Pare aqui e me mostre o relatório. Vou validar antes de você seguir.
+
+## Fase 2 — Construção (depois do meu OK)
+
+Monte a skill com:
+
+- **`SKILL.md`** enxuto contendo:
+  - Frontmatter `name` + `description` rica em gatilhos
+  - Workflow passo a passo: que perguntas fazer ao usuário (source, target,
+    schema, particionamento, modo, incremental vs full) e em que ordem
+  - Checklist do que todo job precisa ter (da Fase 1)
+  - Ponteiros pra `references/` e `assets/`
+- **`assets/templates/`**: esqueletos `.py.template` cobrindo cada arquétipo
+  que apareceu (ex: `s3_to_s3_parquet.py.template`, `jdbc_to_catalog.py.template`)
+  com placeholders claros.
+- **`references/`**: docs de apoio carregados sob demanda
+  (`naming_conventions.md`, `partitioning_rules.md`, `error_handling.md`,
+  `testing_patterns.md`). Tudo que poluiria o SKILL.md mas importa em casos
+  específicos.
+- **`scripts/validate_job.py`** (se fizer sentido): linter que checa se um job
+  recém-gerado segue as convenções extraídas.
+- **`examples/`**: 1–2 exemplos completos de "input do usuário → job gerado"
+  pra eu auditar.
+
+## Fase 3 — Validação
+
+Pegue um dos jobs reais do repositório, finja que não existia, e gere ele do
+zero usando a skill recém-criada. Compare linha a linha com o original e
+reporte divergências. Onde divergir: ou a skill está errada (ajuste), ou o
+original é exceção (documente como exceção em `references/`).
+
+## Restrições
+
+- Não invente padrões que não estão no repo.
+- Quando houver inconsistência entre jobs, pergunte qual é o caminho certo —
+  não escolha sozinho.
+- A skill deve ser legível por outros devs, não só por agentes de IA.
+- Idioma da skill: português (mesmo dos comentários do meu código) / inglês
+  (se o repo for em inglês). Use o que o repo usa.
