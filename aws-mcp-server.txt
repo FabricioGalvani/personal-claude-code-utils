@@ -1,0 +1,72 @@
+Vou pesquisar informações atualizadas sobre isso, já que MCP e suas integrações evoluem rapidamente.Deixa eu buscar especificamente sobre os servidores MCP oficiais da AWS, já que há vários (não apenas o de Bedrock).Tenho informação suficiente para responder de forma completa.
+
+## Sim, é totalmente possível ✅
+
+Os servidores MCP da AWS funcionam no GitHub Copilot do VS Code no Windows. Tanto o VS Code quanto a AWS oferecem suporte oficial para essa combinação — inclusive a AWS publica configurações específicas para Windows na documentação.
+
+### O que você precisa
+
+- **VS Code 1.99 ou superior** (o suporte a MCP ficou disponível em geral a partir da versão 1.102, em julho de 2025)
+- **Extensão do GitHub Copilot** instalada e com uma assinatura ativa (Free, Pro, Pro+, Business ou Enterprise)
+- **Modo Agent** ativado no Copilot Chat — as ferramentas MCP só funcionam no modo Agent, não no modo Ask
+- **`uv` instalado** (gerenciador Python da Astral) — a maioria dos servidores AWS roda via `uvx`
+- **Credenciais AWS configuradas** (perfil AWS, SSO, ou variáveis de ambiente)
+
+⚠️ Se você usa Copilot Business/Enterprise, a política "MCP servers in Copilot" precisa estar habilitada pela sua organização — ela vem desabilitada por padrão.
+
+### Quais servidores AWS estão disponíveis
+
+A AWS mantém o repositório oficial `awslabs/mcp` com vários servidores, entre eles: AWS API, AWS Documentation, AWS Pricing, CDK, Terraform, Cost Analysis, Bedrock KB, Aurora DSQL, CCAPI (Cloud Control API), Nova Canvas, entre outros. Também há o **AWS Knowledge MCP Server** (remoto, gerenciado pela AWS, sem necessidade de instalação local nem conta AWS).
+
+### Configuração no Windows
+
+O detalhe importante: no Windows, a configuração precisa de um formato ligeiramente diferente do macOS/Linux. Exemplo do `mcp.json` (no VS Code, abra via Command Palette → `MCP: Open User Configuration`):
+
+```json
+{
+  "servers": {
+    "awslabs.aws-documentation-mcp-server": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "tool", "run",
+        "--from", "awslabs.aws-documentation-mcp-server@latest",
+        "awslabs.aws-documentation-mcp-server.exe"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_DOCUMENTATION_PARTITION": "aws"
+      }
+    }
+  }
+}
+```
+
+⚠️ Observação importante: o VS Code usa `mcp.json` (não `settings.json`) e a chave raiz é `"servers"` (não `"mcpServers"` como em Cursor/Claude Desktop). Muitos exemplos da AWS na internet usam `"mcpServers"` porque foram escritos para Cursor/Kiro/Q Developer — adapte para `"servers"` ao colar no VS Code.
+
+### Passo a passo resumido
+
+1. Atualize o VS Code e a extensão do Copilot
+2. Instale o `uv` no Windows (via `winget install --id=astral-sh.uv` ou `pip install uv`)
+3. Configure credenciais AWS (`aws configure` ou `aws sso login`)
+4. No VS Code: `Ctrl+Shift+P` → `MCP: Open User Configuration` (ou crie `.vscode/mcp.json` no workspace)
+5. Cole a configuração do servidor desejado
+6. Clique em **Start** que aparece sobre o servidor no JSON
+7. Abra Copilot Chat → selecione **Agent** no dropdown → use as ferramentas
+
+### Alternativa mais simples: AWS Knowledge MCP
+
+Se você só quer pesquisar documentação AWS sem gerenciar infraestrutura, o servidor remoto AWS Knowledge é mais fácil — não exige `uv`, credenciais AWS, nem conta AWS:
+
+```json
+{
+  "servers": {
+    "aws-knowledge": {
+      "type": "http",
+      "url": "https://knowledge-mcp.global.api.aws"
+    }
+  }
+}
+```
+
+Quer ajuda configurando algum servidor AWS específico (API, CDK, Pricing, Bedrock KB)?
